@@ -24,6 +24,8 @@ from collective.twitter.portlets.config import PROJECTNAME
 
 from collective.twitter.portlets import _
 
+from collective.twitter.feed.interfaces import IFeedUtility
+
 from plone.memoize import ram
 from time import time
 
@@ -160,87 +162,29 @@ class Renderer(base.Renderer):
     @ram.cache(cache_key_simple)
     def getSearchResults(self):
         logger.info("Getting tweets.")
-        registry = getUtility(IRegistry)
-        accounts = registry.get('collective.twitter.accounts', [])
-
-        account = accounts.get(self.data.tw_account, {})
+        
         results = []
 
-        if account:
+        if self.isValidAccount():
             logger.info("Got a valid account.")
-            logger.info("consumer_key = %s" % account.get('consumer_key'))
-            logger.info("consumer_secret = %s" % account.get('consumer_secret'))
-            logger.info("access_token_key = %s" % account.get('oauth_token'))
-            logger.info("access_token_secret = %s" % account.get('oauth_token_secret'))
-
-            tw = twitter.Api(consumer_key=account.get('consumer_key'),
-                             consumer_secret=account.get('consumer_secret'),
-                             access_token_key=account.get('oauth_token'),
-                             access_token_secret=account.get('oauth_token_secret'),)
 
             tw_user = self.data.tw_user
             max_results = self.data.max_results
 
             try:
-                results = tw.GetUserTimeline(tw_user, count=max_results)
+                results = self.feed_tool.get_timeline(tw_user, count=max_results)
                 logger.info("%s results obtained." % len(results))
             except Exception, e:
                 logger.info("Something went wrong: %s." % e)
                 results = []
         return results
 
-    def getTweet(self, result):
-        # We need to make URLs, hastags and users clickable.
-        URL_TEMPLATE = """
-        <a href="%s" target="blank_">%s</a>
-        """
-        HASHTAG_TEMPLATE = """
-        <a href="http://twitter.com/#!/search?q=%s" target="blank_">%s</a>
-        """
-        USER_TEMPLATE = """
-        <a href="http://twitter.com/#!/%s" target="blank_">%s</a>
-        """
-
-        full_text = result.GetText()
-        split_text = full_text.split(' ')
-
-        # Now, lets fix links, hashtags and users
-        for index, word in enumerate(split_text):
-            if word.startswith('@'):
-                # This is a user
-                split_text[index] = USER_TEMPLATE % (word[1:], word)
-            elif word.startswith('#'):
-                # This is a hashtag
-                split_text[index] = HASHTAG_TEMPLATE % ("%23" + word[1:], word)
-            elif word.startswith('http'):
-                # This is a hashtag
-                split_text[index] = URL_TEMPLATE % (word, word)
-
-        return "<p>%s</p>" % ' '.join(split_text)
-
-    def getTweetUrl(self, result):
-        return "https://twitter.com/%s/status/%s" % \
-            (result.user.screen_name, result.id)
-
-    def getReplyTweetUrl(self, result):
-        return "https://twitter.com/intent/tweet?in_reply_to=%s" % result.id
-
-    def getReTweetUrl(self, result):
-        return "https://twitter.com/intent/retweet?tweet_id=%s" % result.id
-
-    def getFavTweetUrl(self, result):
-        return "https://twitter.com/intent/favorite?tweet_id=%s" % result.id
-
-    def getDate(self, result):
-        if self.data.pretty_date:
-            # Returns human readable date for the tweet
-            date_utility = getUtility(IPrettyDate)
-            date = date_utility.date(result.GetCreatedAt())
-        else:
-            date = DateTime.DateTime(result.GetCreatedAt())
-
-        return date
-
+    @property
+    def feed_tool(self):
+        util = getUtility(IFeedUtility, name="timeline")
+        return util(self.data.tw_account,
+                    request=self.request,
+                    context=self.context)
 
 class AddForm(base.AddForm):
     """Portlet add form.

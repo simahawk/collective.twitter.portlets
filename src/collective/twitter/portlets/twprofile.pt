@@ -11,49 +11,48 @@
 
         <dd class="portletItem"
             tal:define="results view/getSearchResults;
+                        feed_tool view/feed_tool;
                         toLocalizedTime nocall:context/@@plone/toLocalizedTime;"
             tal:attributes="class python:'portletItem ' + ('avatar-on' if view.data.show_avatars else 'avatar-off')">
-            <div class="result-item" tal:repeat="result results">
-                <div class="tweet-image">
-                    <img class="avatar"
-                        src="#"
-                        tal:condition="view/data/show_avatars"
-                        tal:attributes="src python:result.GetUser().GetProfileImageUrl()"/>
-                </div>
-                <div class="tweet-content">
-                    <div class="tweet-row">
-                        <span class="tweet-user-name">
-                            <a class="tweet-screen-name"
-                            href="#"
-                            tal:define="screen_name python:result.GetUser().GetScreenName()"
-                            tal:attributes="href string:http://twitter.com/#!/${screen_name}">
-                                <span tal:content="screen_name"/>
-                            </a>
-                        </span>
+
+            <tal:item repeat="result results">
+                <div class="result-item" tal:define="data python:feed_tool.get_tweet_data(result)">
+                    <div class="tweet-image">
+                        <img class="avatar"
+                            src="#"
+                            tal:condition="view/data/show_avatars"
+                            tal:attributes="src data/profile_img_url"/>
                     </div>
-                    <div class="tweet-row">
-                        <div class="tweet-text">
-                            <span tal:replace="structure python:view.getTweet(result)"/>
+                    <div class="tweet-content">
+                        <div class="tweet-row">
+                            <span class="tweet-user-name">
+                                <a class="tweet-screen-name"
+                                href="#"
+                                tal:define="screen_name data/screen_name"
+                                tal:attributes="href string:http://twitter.com/#!/${screen_name}">
+                                    <span tal:content="screen_name"/>
+                                </a>
+                            </span>
+                        </div>
+                        <div class="tweet-row">
+                            <div class="tweet-text">
+                                <p tal:content="structure data/text" />
+                            </div>
                         </div>
                     </div>
+                    <div class="tweet-actions" i18n:domain="collective.twitter.portlets">
+                      <a tal:attributes="href data/url" class="tweet-timestamp"
+                          tal:content="python:toLocalizedTime(data.date, long_format=1)"
+                          tal:condition="not:view/data/pretty_date" i18n:translate=""></a>
+                      <a tal:attributes="href data/url" class="tweet-timestamp"
+                          tal:content="data/date"
+                          tal:condition="view/data/pretty_date" i18n:translate=""></a>
+                      <a class="reply" tal:attributes="href data/reply_url" i18n:translate="">Reply </a>
+                      <a class="retweet" tal:attributes="href data/retweet_url" i18n:translate="">ReTweet </a>
+                      <a class="fav" tal:attributes="href data/fav_url" i18n:translate="">Favorite </a>
+                    </div>
                 </div>
-                <div class="tweet-actions">
-                  <a tal:attributes="href python:view.getTweetUrl(result)" class="tweet-timestamp"
-                      tal:content="python:toLocalizedTime(view.getDate(result), long_format=1)"
-                      tal:condition="not:view/data/pretty_date" i18n:translate=""
-                       i18n:domain="collective.twitter.portlets"></a>
-                  <a tal:attributes="href python:view.getTweetUrl(result)" class="tweet-timestamp"
-                      tal:content="python:view.getDate(result)"
-                      tal:condition="view/data/pretty_date" i18n:translate=""
-                       i18n:domain="collective.twitter.portlets"></a>
-                  <a class="reply" tal:attributes="href python:view.getReplyTweetUrl(result)"     i18n:translate=""
-                       i18n:domain="collective.twitter.portlets">Reply </a>
-                  <a class="retweet" tal:attributes="href python:view.getReTweetUrl(result)" i18n:translate=""
-                   i18n:domain="collective.twitter.portlets">ReTweet </a>
-                  <a class="fav" tal:attributes="href python:view.getFavTweetUrl(result)" i18n:translate=""
-                   i18n:domain="collective.twitter.portlets">Favorite </a>
-                </div>
-            </div>
+          </tal:item>
         </dd>
 
     </tal:valid>
